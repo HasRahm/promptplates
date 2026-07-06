@@ -14,6 +14,7 @@ from pathlib import Path
 ROOT = Path(__file__).parent
 MODULES = ROOT / "modules"
 ROLES = ROOT / "roles"
+SKILLS = ROOT / "skills"
 
 
 def module_files(exclude: set[str]) -> list[Path]:
@@ -56,6 +57,8 @@ def main() -> int:
             print("module:", p.name)
         for p in sorted(ROLES.glob("*.md")):
             print("role:  ", p.stem)
+        for p in sorted(SKILLS.glob("*/SKILL.md")):
+            print("skill: ", p.parent.name)
         return 0
 
     fields = dict(kv.split("=", 1) for kv in getattr(args, "set"))

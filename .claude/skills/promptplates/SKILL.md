@@ -1,9 +1,20 @@
 ---
 name: promptplates
-description: Use when writing or editing ANY agent system prompt, subagent definition, agents.md/AGENTS.md role file, or SKILL.md behavioral rules. Applies the nine frontier-lab prompt-engineering patterns (numeric limits, ordered checklists, banned-phrase lists, priority ordering, injection defenses) and the module library in this repo.
+description: Router for the promptplates toolkit. Points at the four coding-pipeline skills (/pp-plan, /pp-build, /pp-review, /pp-verify) and the prompt-module library. Use when starting a coding task, or when writing/editing any agent system prompt, subagent definition, AGENTS.md role file, or SKILL.md.
 ---
 
-# promptplates — write agent prompts like frontier labs do
+# promptplates — router
+
+## For a coding task, use the pipeline skills
+- **/pp-plan** — turn a task into ≤10 verifiable steps ending in a `VERIFY:` command.
+- **/pp-build** — implement the plan, proving each claim with a real command (records evidence
+  via provenclaim when available).
+- **/pp-review** — adversarial diff review with a false-positive gate, ending in `VERDICT:`.
+- **/pp-verify** — independently re-run the proof, flag stale/unproven claims, end in PASS/FAIL.
+
+Typical flow: `/pp-plan` → `/pp-build` → `/pp-review` → `/pp-verify`.
+
+## For writing or editing an agent prompt, use the module library
 
 When creating or editing a system prompt, agent definition, or behavioral rule set:
 

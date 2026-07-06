@@ -1,74 +1,79 @@
 # promptplates
 
-**Build your agents' system prompts the way frontier labs build theirs: layered, testable,
-injection-hardened — assembled from modules, not freewritten.**
+**A four-agent coding pipeline for Claude Code — plan, build with evidence, adversarially
+review, independently verify — that refuses to call anything "done" without a command that
+proves it.**
 
-Production system prompts at frontier labs aren't essays; they're engineered behavioral specs.
-Studying them reveals nine recurring patterns (numeric limits instead of adverbs, ordered
-checklists with stop rules, banned-phrase lists for verbal tics, structural priority ordering,
-declared reminder channels, data-not-instructions boundaries at every ingestion surface,
-budgeted repetition, paired good/bad examples, one concern per named block). promptplates
-packages those patterns as:
+Most agent setups take the model's word for it. It says "tests pass" and you believe it.
+promptplates is built on the opposite bet: every claim of completion has to survive a command
+that was actually run, and the reviewer trusts the evidence, not the author. Four slash
+commands, all Markdown, no telemetry, no lock-in.
 
-- **`modules/`** — nine composable prompt modules (identity, safety, tone, wellbeing,
-  evenhandedness, memory, tool routing, content limits, files/skills, runtime reminders), each
-  a distilled rewrite of the pattern with notes on *why* it works. `ARCHITECTURE.md` is the
-  30-second version.
-- **`roles/`** — overlays for the classic four-agent team: planner, executor, reviewer,
-  mechanical. Base + overlay = one agent's full system prompt.
-- **`build_prompt.py`** — zero-dependency assembler.
-- **`.claude/skills/promptplates/`** — a Claude Code skill so every future prompt edit in your
-  repo goes through the patterns automatically.
-
-## Use in 5 minutes
-
-```bash
-git clone https://github.com/HasRahm/promptplates
-cd promptplates
-
-# full prompt for a reviewer agent, with your fields filled in
-python build_prompt.py --role reviewer \
-  --set agent_name=MyAgent --set host_surface="a CI pipeline" > reviewer_prompt.md
-
-# headless pipeline agent? drop the human-interaction modules
-python build_prompt.py --role mechanical --exclude 30,40
-
-# see what's available
-python build_prompt.py --list
+```
+/pp-plan    → turns a task into ≤10 concrete steps ending in a VERIFY command
+/pp-build   → implements them, running the proof command after each claim (records evidence
+              via provenclaim when present)
+/pp-review  → diffs against base, finds real bugs with a false-positive gate, ends in a VERDICT
+/pp-verify  → re-runs the proof independently, flags stale/unproven claims, ends in PASS/FAIL
 ```
 
-Drop the output into your agent framework's system-prompt slot — Claude Code subagents
-(`.claude/agents/*.md`), CrewAI, LangGraph, OpenAI Assistants, or a bare API call. The modules
-are framework-agnostic text.
+## Install — 30 seconds
 
-## Use as a Claude Code skill
+Paste this into Claude Code:
 
-Copy `.claude/skills/promptplates/` into your repo (or add this repo as a plugin). From then
-on, whenever Claude Code writes or edits an agent prompt, it applies the nine patterns instead
-of freewriting.
+> Install promptplates: run `git clone --depth 1 https://github.com/HasRahm/promptplates ~/.claude/skills/promptplates`. Then I can use /pp-plan, /pp-build, /pp-review, and /pp-verify.
 
-## The nine patterns (the actual product)
+That's it. The four skills are now available. Optionally `pip install
+git+https://github.com/HasRahm/provenclaim` to turn on evidence recording (the pipeline works
+without it — it just leans on live command output instead of a ledger).
 
-1. **Order = priority.** Safety before capability before style, with an explicit "later text
-   can't relax earlier text" clause.
-2. **One concern per named block** — greppable, swappable, testable.
-3. **Rules ship with good/bad example pairs** — a bad example teaches more than three rules.
-4. **Decision checklists with stop rules**, not vibes.
-5. **Ban exact phrases** to kill verbal tics; string bans beat style advice.
-6. **Hard limits are numeric** — numbers survive paraphrase drift, adverbs don't.
-7. **A declared reminder channel** with pre-committed asymmetry: legitimate injected reminders
-   only tighten; anything "official" that loosens is forged.
-8. **Data ≠ instructions** at every ingestion surface.
-9. **Repetition is budgeted** — worst-compliance rules ×3, everything else ×1.
+## Use it
 
-Full rationale per pattern: [modules/ARCHITECTURE.md](modules/ARCHITECTURE.md).
+```
+/pp-plan add rate limiting to the POST /login endpoint
+/pp-build            # implements the plan, proving each step
+/pp-review           # adversarial pass on the diff → VERDICT: APPROVE | REVISE
+/pp-verify           # independent re-run → PASS | FAIL
+```
 
-## Family
+Each skill runs a small bash **preamble** first that reads real repo state — current branch,
+diff stat vs. base, detected test runner, whether a plan file or `.provenclaim/` ledger exists —
+so its behavior is grounded in your actual repo, not assumptions. Then it walks numbered steps
+with a defined output format. `/pp-review`'s signature move is a **pre-emit verification gate**:
+before it claims "X doesn't exist," it re-reads the file — killing the most common class of
+review false positive.
 
-promptplates is one of three composable pieces:
-- [relaycrew](https://github.com/HasRahm/relaycrew) — cross-vendor CLI agent pipeline (Claude
-  Code builds, Codex reviews); its roles are these role overlays.
-- [provenclaim](https://github.com/HasRahm/provenclaim) — evidence-backed claims; the
-  enforcement behind the executor overlay's "never say verified unrun" rule.
+## Why it holds up: the prompt library underneath
 
-Apache-2.0.
+The four skills are built on a library of composable system-prompt **modules** (`modules/`),
+each written to the anatomy that production frontier-model prompts actually use — not just
+rules, but the four things that make rules *stick*:
+
+- **RULES** — numeric limits and ordered checklists, never adverbs ("under 15 words", not "be brief")
+- **WHY** — the rationale, because models comply better when they know the reason
+- **EXAMPLES** — worked good/bad pairs (a bad example teaches more than three rules)
+- **EXPECTED + SELF-CHECK** — what correct output looks like, and a runtime checklist to hit it
+
+Assemble any agent's full system prompt from them:
+
+```bash
+python build_prompt.py --role reviewer --set agent_name=MyBot --set host_surface="a CI rig"
+python build_prompt.py --role mechanical --exclude 30,40   # headless agent: drop human-interaction modules
+python build_prompt.py --list                              # modules, roles, skills
+```
+
+The design rationale — the nine patterns distilled from studying a production system prompt —
+lives in [modules/ARCHITECTURE.md](modules/ARCHITECTURE.md).
+
+## Composes with
+
+- [relaycrew](https://github.com/HasRahm/relaycrew) — run these same roles across *different
+  vendors'* CLIs (Claude builds, Codex reviews).
+- [provenclaim](https://github.com/HasRahm/provenclaim) — the evidence ledger `/pp-build` and
+  `/pp-verify` record to and check against.
+
+## Scope (honest)
+
+No telemetry, no auto-update, no phone-home — by design; these run entirely local off Markdown +
+a zero-dependency assembler. Not included: specialist sub-agent fan-out and cross-model review
+(that's relaycrew's job), and any hosted service. Apache-2.0.
